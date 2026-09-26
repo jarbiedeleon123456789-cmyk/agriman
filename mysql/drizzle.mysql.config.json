@@ -1,0 +1,7 @@
+{
+  "dialect": "mysql",
+  "schema": "./src/db/mysql-schema.ts",
+  "dbCredentials": {
+    "url": "mysql://root:@127.0.0.1:3306/agrishare_db"
+  }
+}
