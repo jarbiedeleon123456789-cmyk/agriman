@@ -3,8 +3,9 @@ import mysql from "mysql2/promise";
 import * as schema from "./mysql-schema";
 
 const databaseUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
 
-if (!databaseUrl) {
+if (!databaseUrl && !isProductionBuild) {
   throw new Error("MYSQL_URL or DATABASE_URL is required");
 }
 
@@ -15,7 +16,7 @@ const globalForDb = globalThis as typeof globalThis & {
 export const pool =
   globalForDb.__agriShareMysqlPool ??
   mysql.createPool({
-    uri: databaseUrl,
+    ...(databaseUrl ? { uri: databaseUrl } : {}),
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
