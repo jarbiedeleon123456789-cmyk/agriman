@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { farmers, users } from "@/db/schema";
+import { farmers, users } from "@/db/mysql-schema";
 
 const COOKIE = "agrishare_session";
 const SECRET = process.env.SESSION_SECRET ?? "agrishare-baco-oriental-mindoro-dev-secret";

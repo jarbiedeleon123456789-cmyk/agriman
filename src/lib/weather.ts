@@ -1,7 +1,7 @@
 import "server-only";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { weatherCache } from "@/db/schema";
+import { weatherCache } from "@/db/mysql-schema";
 
 export const BACO = { lat: 13.3578, lng: 121.1002, label: "Baco, Oriental Mindoro" };
 

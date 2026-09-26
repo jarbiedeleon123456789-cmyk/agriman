@@ -25,7 +25,7 @@ import {
   settings,
   users,
   waitlist,
-} from "@/db/schema";
+} from "@/db/mysql-schema";
 import {
   createSession,
   destroySession,
@@ -143,7 +143,7 @@ export async function registerAction(_prev: ActionState, fd: FormData): Promise<
   const inserted = await db
     .insert(users)
     .values({ name, email, phone, passwordHash: hashPassword(password), role: "farmer", barangayId })
-    .returning({ id: users.id });
+    .$returningId();
   const userId = inserted[0].id;
   await db.insert(farmers).values({
     userId,
@@ -220,15 +220,16 @@ export async function createRequestAction(_prev: ActionState, fd: FormData): Pro
       attachmentName: s(fd, "attachmentName"),
       notes: s(fd, "notes"),
       status: "Submitted",
+      reviewNotes: "",
     })
-    .returning({ id: requests.id });
+    .$returningId();
 
   if (waitlistOnly && equipmentId) {
     await db.insert(waitlist).values({
       requestId: inserted[0].id,
       equipmentId,
       farmerId: user.farmerId,
-      preferredDate: start.toISOString().slice(0, 10),
+      preferredDate: new Date(start.toISOString().slice(0, 10)),
       note: "Auto-queued: preferred period was already booked.",
     });
   }
@@ -420,7 +421,7 @@ export async function saveEquipmentAction(fd: FormData) {
     defaultOperatorId: n(fd, "defaultOperatorId"),
     ratePerHa: s(fd, "ratePerHa", "0"),
     capacityNote: s(fd, "capacityNote"),
-    nextMaintenanceDue: s(fd, "nextMaintenanceDue") || null,
+    nextMaintenanceDue: dt(fd, "nextMaintenanceDue"),
     notes: s(fd, "notes"),
   };
   if (id) {
@@ -452,18 +453,18 @@ export async function addMaintenanceAction(fd: FormData) {
   if (!equipmentId) return;
   await db.insert(maintenanceRecords).values({
     equipmentId,
-    serviceDate: s(fd, "serviceDate", new Date().toISOString().slice(0, 10)),
+    serviceDate: dt(fd, "serviceDate") ?? new Date(),
     type: s(fd, "type", "Preventive"),
     description: s(fd, "description"),
     cost: s(fd, "cost", "0"),
-    nextDue: s(fd, "nextDue") || null,
+    nextDue: dt(fd, "nextDue"),
     status: s(fd, "status", "Completed"),
     recordedBy: user.id,
   });
   if (s(fd, "status") === "In Progress") {
     await db.update(equipment).set({ status: "Under Maintenance" }).where(eq(equipment.id, equipmentId));
   }
-  const due = s(fd, "nextDue");
+  const due = dt(fd, "nextDue");
   if (due) await db.update(equipment).set({ nextMaintenanceDue: due }).where(eq(equipment.id, equipmentId));
   await logAudit(user, "CREATE", "Maintenance", `EQP-${equipmentId}`, s(fd, "description") || "Maintenance logged.");
   refresh();
@@ -512,7 +513,7 @@ export async function saveAnnouncementAction(fd: FormData) {
     await db.update(announcements).set(values).where(eq(announcements.id, id));
     await logAudit(user, "UPDATE", "Announcements", `ANN-${id}`, `Updated “${values.title}”.`);
   } else {
-    const inserted = await db.insert(announcements).values(values).returning({ id: announcements.id });
+    const inserted = await db.insert(announcements).values(values).$returningId();
     await logAudit(user, values.status === "Published" ? "PUBLISH" : "CREATE", "Announcements", `ANN-${inserted[0].id}`, `${values.status} “${values.title}”.`);
     if (values.status === "Published") {
       const audience = await db.select({ id: users.id }).from(users).where(sql`${users.role} in ('farmer','association','barangay')`);
@@ -581,12 +582,13 @@ export async function saveMeetingAction(fd: FormData) {
     status: s(fd, "status", "Upcoming"),
     attachmentName: s(fd, "attachmentName"),
     createdBy: user.id,
+    minutes: "",
   };
   if (id) {
     await db.update(meetings).set(values).where(eq(meetings.id, id));
     await logAudit(user, "UPDATE", "Meetings", `MTG-${id}`, `Updated “${values.title}”.`);
   } else {
-    const inserted = await db.insert(meetings).values(values).returning({ id: meetings.id });
+    const inserted = await db.insert(meetings).values(values).$returningId();
     const meetingId = inserted[0].id;
     const invitees = await db.select({ id: users.id }).from(users).where(sql`${users.role} in ('farmer','association','barangay','operator')`);
     for (const inv of invitees) {
@@ -645,8 +647,8 @@ export async function saveProgramAction(fd: FormData) {
     description: s(fd, "description"),
     eligibility: s(fd, "eligibility"),
     assistanceType: s(fd, "assistanceType", "Input Subsidy"),
-    opensAt: s(fd, "opensAt") || null,
-    deadline: s(fd, "deadline") || null,
+    opensAt: dt(fd, "opensAt"),
+    deadline: dt(fd, "deadline"),
     slots: n(fd, "slots") ?? 0,
     status: s(fd, "status", "Open"),
   };
@@ -786,8 +788,8 @@ export async function saveUserAction(fd: FormData) {
     await logAudit(admin, "UPDATE", "User Management", `USR-${id}`, `Updated account ${base.email}.`);
   } else {
     const password = s(fd, "password", "agrishare123");
-    const inserted = await db.insert(users).values({ ...base, passwordHash: hashPassword(password) }).returning({ id: users.id });
-    if (base.role === "farmer") await db.insert(farmers).values({ userId: inserted[0].id, barangayId: base.barangayId });
+    const inserted = await db.insert(users).values({ ...base, passwordHash: hashPassword(password) }).$returningId();
+    if (base.role === "farmer") await db.insert(farmers).values({ userId: inserted[0].id, barangayId: base.barangayId, address: "" });
     await logAudit(admin, "CREATE", "User Management", `USR-${inserted[0].id}`, `Created ${base.role} account ${base.email}.`);
   }
   refresh();
@@ -843,7 +845,7 @@ export async function saveMarketPriceAction(fd: FormData) {
     unit: s(fd, "unit", "kg"),
     price: s(fd, "price", "0"),
     previousPrice: s(fd, "previousPrice", "0"),
-    priceDate: s(fd, "priceDate", new Date().toISOString().slice(0, 10)),
+    priceDate: dt(fd, "priceDate") ?? new Date(),
     source: s(fd, "source", "MAO Baco Market Monitoring"),
     updatedAt: new Date(),
   };

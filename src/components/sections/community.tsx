@@ -15,7 +15,7 @@ import {
 } from "@/lib/queries";
 import { AiCropScanner } from "@/components/ai-scanner";
 import { db } from "@/db";
-import { plantDiagnoses, barangays as barangayTable } from "@/db/schema";
+import { plantDiagnoses, barangays as barangayTable } from "@/db/mysql-schema";
 import { desc, eq } from "drizzle-orm";
 import {
   applyProgramAction,

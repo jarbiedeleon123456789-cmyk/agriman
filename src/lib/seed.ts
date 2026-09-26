@@ -26,7 +26,7 @@ import {
   roles,
   settings,
   users,
-} from "@/db/schema";
+} from "@/db/mysql-schema";
 import { hashPassword } from "@/lib/session";
 
 let seedPromise: Promise<void> | null = null;
@@ -57,8 +57,7 @@ function at(dayOffset: number, hour = 8, minute = 0) {
 }
 
 function dstr(dayOffset: number) {
-  const d = at(dayOffset, 12);
-  return d.toISOString().slice(0, 10);
+  return at(dayOffset, 12);
 }
 
 export async function ensureSeeded() {
@@ -87,7 +86,7 @@ async function runSeed() {
   ]);
 
   /* --------------------------- barangays ----------------------------- */
-  const brgyRows = await db
+  await db
     .insert(barangays)
     .values([
       { name: "Poblacion", lat: "13.357800", lng: "121.100200", farmlandHa: "120.50" },
@@ -107,13 +106,13 @@ async function runSeed() {
       { name: "Santa Rosa I", lat: "13.412000", lng: "121.104000", farmlandHa: "390.00" },
       { name: "Silonay", lat: "13.369000", lng: "121.063000", farmlandHa: "140.00" },
       { name: "Tabon-tabon", lat: "13.310000", lng: "121.075000", farmlandHa: "215.90" },
-    ])
-    .returning({ id: barangays.id, name: barangays.name });
+    ]);
+  const brgyRows = await db.select({ id: barangays.id, name: barangays.name }).from(barangays);
 
   const brgy = (name: string) => brgyRows.find((b) => b.name === name)!.id;
 
   /* -------------------------- associations --------------------------- */
-  const assocRows = await db
+  await db
     .insert(associations)
     .values([
       { name: "Baco Rice Farmers Association", acronym: "BRFA", contactPerson: "Rolando M. Dela Cruz", contactNumber: "0917-555-0101", barangayId: brgy("Poblacion") },
@@ -121,15 +120,15 @@ async function runSeed() {
       { name: "Mangangan Vegetable Growers", acronym: "MVG", contactPerson: "Jaime P. Villanueva", contactNumber: "0920-555-0177", barangayId: brgy("Mangangan I") },
       { name: "Bayanan Farmers Cooperative", acronym: "BFC", contactPerson: "Teresita L. Agbayani", contactNumber: "0916-555-0198", barangayId: brgy("Bayanan") },
       { name: "Dulangan Corn Producers Group", acronym: "DCPG", contactPerson: "Nestor G. Ramos", contactNumber: "0999-555-0123", barangayId: brgy("Dulangan I") },
-    ])
-    .returning({ id: associations.id, acronym: associations.acronym });
+    ]);
+  const assocRows = await db.select({ id: associations.id, acronym: associations.acronym }).from(associations);
 
   const assoc = (acr: string) => assocRows.find((a) => a.acronym === acr)!.id;
 
   /* ------------------------------ users ------------------------------ */
   const pw = hashPassword("agrishare123");
 
-  const userRows = await db
+  await db
     .insert(users)
     .values([
       { name: "Engr. Ramon T. Bautista", email: "admin@agrishare.gov.ph", phone: "0917-100-1001", passwordHash: pw, role: "admin", barangayId: brgy("Poblacion"), avatarEmoji: "👨‍💼" },
@@ -147,25 +146,25 @@ async function runSeed() {
       { name: "Marlon V. Sarmiento", email: "operator2@agrishare.gov.ph", phone: "0917-500-5002", passwordHash: pw, role: "operator", barangayId: brgy("Bayanan"), avatarEmoji: "👷" },
       { name: "Eduardo N. Lopez", email: "technician@agrishare.gov.ph", phone: "0917-500-5003", passwordHash: pw, role: "operator", barangayId: brgy("Poblacion"), avatarEmoji: "🔧" },
       { name: "COA Rep. Grace T. Morales", email: "auditor@agrishare.gov.ph", phone: "0917-600-6001", passwordHash: pw, role: "auditor", barangayId: brgy("Poblacion"), avatarEmoji: "🕵️" },
-    ])
-    .returning({ id: users.id, email: users.email, name: users.name });
+    ]);
+  const userRows = await db.select({ id: users.id, email: users.email, name: users.name }).from(users);
 
   const usr = (email: string) => userRows.find((u) => u.email.startsWith(email))!.id;
 
   /* ---------------------------- operators ---------------------------- */
-  const opRows = await db
+  await db
     .insert(operators)
     .values([
       { userId: usr("operator@"), specialization: "Combine Harvester Operator", licenseNo: "N02-15-004512", availability: "Available" },
       { userId: usr("operator2@"), specialization: "Tractor Operator / Driver", licenseNo: "N02-16-009821", availability: "On Assignment" },
       { userId: usr("technician@"), specialization: "Farm Machinery Technician", licenseNo: "TESDA-AFM-2291", availability: "Available" },
-    ])
-    .returning({ id: operators.id, userId: operators.userId });
+    ]);
+  const opRows = await db.select({ id: operators.id, userId: operators.userId }).from(operators);
 
   const op = (i: number) => opRows[i].id;
 
   /* ----------------------------- farmers ----------------------------- */
-  const farmerRows = await db
+  await db
     .insert(farmers)
     .values([
       { userId: usr("farmer@"), associationId: assoc("BRFA"), barangayId: brgy("Alag"), rsbsaNumber: "RSBSA-175-2019-00412", address: "Sitio Malaya, Alag, Baco", gender: "Male", totalAreaHa: "3.50", mainCrop: "Rice", preferredContact: "Mobile" },
@@ -175,13 +174,13 @@ async function runSeed() {
       { userId: usr("ricardo.g"), associationId: assoc("BRFA"), barangayId: brgy("San Andres"), rsbsaNumber: "RSBSA-175-2021-00905", address: "San Andres, Baco", gender: "Male", totalAreaHa: "2.75", mainCrop: "Rice", preferredContact: "Barangay Office" },
       { userId: usr("anita.bituin"), associationId: assoc("AIA"), barangayId: brgy("Santa Rosa I"), rsbsaNumber: "RSBSA-175-2017-00108", address: "Santa Rosa I, Baco", gender: "Female", totalAreaHa: "5.10", mainCrop: "Rice", preferredContact: "Mobile" },
       { userId: usr("association@"), associationId: assoc("BRFA"), barangayId: brgy("Poblacion"), rsbsaNumber: "RSBSA-175-2016-00021", address: "Poblacion, Baco", gender: "Male", totalAreaHa: "6.00", mainCrop: "Rice", preferredContact: "Mobile" },
-    ])
-    .returning({ id: farmers.id, userId: farmers.userId });
+    ]);
+  const farmerRows = await db.select({ id: farmers.id, userId: farmers.userId }).from(farmers);
 
   const frm = (email: string) => farmerRows.find((f) => f.userId === usr(email))!.id;
 
   /* ------------------------------ farms ------------------------------ */
-  const farmRows = await db
+  await db
     .insert(farms)
     .values([
       { farmerId: frm("farmer@"), barangayId: brgy("Alag"), name: "Dela Cruz Rice Field A", crop: "Rice (NSIC Rc222)", areaHa: "2.00", lat: "13.402400", lng: "121.080500", landmark: "Near Alag irrigation canal" },
@@ -193,13 +192,13 @@ async function runSeed() {
       { farmerId: frm("anita.bituin"), barangayId: brgy("Santa Rosa I"), name: "Bituin Farm North", crop: "Rice (NSIC Rc222)", areaHa: "3.10", lat: "13.413200", lng: "121.105400", landmark: "Sta. Rosa I service road" },
       { farmerId: frm("anita.bituin"), barangayId: brgy("Santa Rosa I"), name: "Bituin Farm South", crop: "Rice (NSIC Rc160)", areaHa: "2.00", lat: "13.410100", lng: "121.101900", landmark: "Near creek crossing" },
       { farmerId: frm("association@"), barangayId: brgy("Poblacion"), name: "BRFA Demo Farm", crop: "Rice (Certified Seeds)", areaHa: "6.00", lat: "13.356200", lng: "121.102900", landmark: "MAO demo area" },
-    ])
-    .returning({ id: farms.id, name: farms.name });
+    ].map((farm) => ({ notes: "", ...farm })));
+  const farmRows = await db.select({ id: farms.id, name: farms.name }).from(farms);
 
   const farm = (name: string) => farmRows.find((f) => f.name === name)!.id;
 
   /* --------------------------- equipment ----------------------------- */
-  const catRows = await db
+  await db
     .insert(equipmentCategories)
     .values([
       { categoryName: "Combine Harvester", description: "Self-propelled rice combine harvesters.", icon: "🌾" },
@@ -208,12 +207,12 @@ async function runSeed() {
       { categoryName: "Transport", description: "Hauling trucks and multicabs.", icon: "🛻" },
       { categoryName: "Post-Harvest", description: "Dryers, mills and post-harvest facilities.", icon: "🏭" },
       { categoryName: "Irrigation", description: "Water pumps and irrigation sets.", icon: "💧" },
-    ])
-    .returning({ id: equipmentCategories.id, categoryName: equipmentCategories.categoryName });
+    ]);
+  const catRows = await db.select({ id: equipmentCategories.id, categoryName: equipmentCategories.categoryName }).from(equipmentCategories);
 
   const cat = (name: string) => catRows.find((c) => c.categoryName === name)!.id;
 
-  const eqRows = await db
+  await db
     .insert(equipment)
     .values([
       { name: "Kubota DC-70 Combine Harvester", categoryId: cat("Combine Harvester"), assetCode: "MAO-HRV-001", description: "70 HP rice combine harvester with 2.0 m cutting width. Ideal for 1–4 ha lowland rice fields.", status: "Available", condition: "Good", homeBarangayId: brgy("Poblacion"), location: "MAO Motorpool, Poblacion", lat: "13.357100", lng: "121.100900", imageUrl: IMG.harvester, defaultOperatorId: op(0), ratePerHa: "3500.00", capacityNote: "≈1.2 ha per day", nextMaintenanceDue: dstr(24) },
@@ -228,8 +227,8 @@ async function runSeed() {
       { name: "Mechanical Flatbed Dryer", categoryId: cat("Post-Harvest"), assetCode: "MAO-PHF-001", description: "6-ton capacity flatbed dryer located at the MAO post-harvest facility.", status: "Available", condition: "Excellent", homeBarangayId: brgy("Poblacion"), location: "MAO Post-Harvest Facility", lat: "13.356600", lng: "121.099600", imageUrl: IMG.field, ratePerHa: "0.00", capacityNote: "6 tons per batch", nextMaintenanceDue: dstr(60) },
       { name: "Rice Mill Unit (Village Type)", categoryId: cat("Post-Harvest"), assetCode: "MAO-PHF-002", description: "Village-type rice mill shared by accredited associations.", status: "Available", condition: "Good", homeBarangayId: brgy("Baras"), location: "Baras Village Mill", lat: "13.350900", lng: "121.107600", imageUrl: IMG.machine, ratePerHa: "0.00", capacityNote: "500 kg per hour", nextMaintenanceDue: dstr(38) },
       { name: "4-inch Irrigation Water Pump", categoryId: cat("Irrigation"), assetCode: "MAO-IRR-001", description: "Diesel water pump set with 50 m hose for supplemental irrigation.", status: "Available", condition: "Good", homeBarangayId: brgy("Mayabig"), location: "Mayabig Barangay Hall", lat: "13.318500", lng: "121.095800", imageUrl: IMG.field, ratePerHa: "600.00", capacityNote: "4-inch discharge", nextMaintenanceDue: dstr(27) },
-    ])
-    .returning({ id: equipment.id, assetCode: equipment.assetCode });
+    ].map((item) => ({ notes: "", ...item })));
+  const eqRows = await db.select({ id: equipment.id, assetCode: equipment.assetCode }).from(equipment);
 
   const eq = (code: string) => eqRows.find((e) => e.assetCode === code)!.id;
 
@@ -240,7 +239,7 @@ async function runSeed() {
     { name: "Agricultural Extension Assistance", type: "Service", description: "On-farm technical assistance and farm visit by an assigned technologist.", unit: "visit", quantityTotal: 200, quantityAvailable: 158, availability: "Request-based" },
     { name: "Solar Dryer Pavement Use", type: "Facility", description: "Use of the barangay solar drying pavement (scheduled by batch).", unit: "slot", quantityTotal: 24, quantityAvailable: 9, availability: "Available" },
     { name: "Knapsack Sprayer Set", type: "Tool", description: "Manual and motorized knapsack sprayers for borrowing.", unit: "unit", quantityTotal: 30, quantityAvailable: 12, availability: "Available" },
-  ]);
+  ].map((resource) => ({ notes: "", ...resource })));
 
   await db.insert(maintenanceRecords).values([
     { equipmentId: eq("MAO-HRV-001"), serviceDate: dstr(-35), type: "Preventive", description: "Change of engine oil, filters and blade sharpening after 120 hours of operation.", cost: "8500.00", nextDue: dstr(24), status: "Completed", recordedBy: usr("staff@") },
@@ -252,7 +251,7 @@ async function runSeed() {
   ]);
 
   /* --------------------------- requests ------------------------------ */
-  const reqRows = await db
+  await db
     .insert(requests)
     .values([
       { code: "REQ-2601-0001", farmerId: frm("farmer@"), equipmentId: eq("MAO-HRV-001"), farmId: farm("Dela Cruz Rice Field A"), barangayId: brgy("Alag"), serviceType: "Harvesting", requestedStart: at(3, 7), requestedEnd: at(3, 15), purpose: "Harvesting of 2.0 ha mature rice (NSIC Rc222) before forecast rains.", cropType: "Rice", areaHa: "2.00", priority: "High", status: "Approved", reviewNotes: "Approved. Operator assigned. Please prepare the access road.", reviewedBy: usr("staff@"), reviewedAt: at(-1, 10), createdAt: at(-3, 9) },
@@ -267,8 +266,8 @@ async function runSeed() {
       { code: "REQ-2601-0010", farmerId: frm("anita.bituin"), equipmentId: eq("MAO-PHF-001"), barangayId: brgy("Santa Rosa I"), serviceType: "Drying", requestedStart: at(7, 8), requestedEnd: at(7, 18), purpose: "Mechanical drying of 5 tons freshly harvested palay.", cropType: "Rice", areaHa: "3.10", priority: "Normal", status: "Approved", reviewNotes: "Approved, batch 2 slot.", reviewedBy: usr("coordinator@"), reviewedAt: at(0, 8), createdAt: at(-2, 13) },
       { code: "REQ-2601-0011", farmerId: frm("ricardo.g"), equipmentId: eq("MAO-HRV-001"), farmId: farm("Gatchalian Riceland"), barangayId: brgy("San Andres"), serviceType: "Harvesting", requestedStart: at(9, 7), requestedEnd: at(9, 15), purpose: "Scheduled harvest, 2.75 ha.", cropType: "Rice", areaHa: "2.75", priority: "Normal", status: "Approved", reviewNotes: "Approved.", reviewedBy: usr("staff@"), reviewedAt: at(0, 9), createdAt: at(-1, 8) },
       { code: "REQ-2601-0012", farmerId: frm("pedro.villanueva"), equipmentId: eq("MAO-IRR-001"), farmId: farm("Villanueva Vegetable Plot"), barangayId: brgy("Mangangan I"), serviceType: "Irrigation Support", requestedStart: at(-20, 7), requestedEnd: at(-20, 12), purpose: "Supplemental irrigation during dry spell.", cropType: "Vegetables", areaHa: "1.80", priority: "Normal", status: "Completed", reviewedBy: usr("staff@"), reviewedAt: at(-22, 9), completedAt: at(-20, 13), createdAt: at(-24, 15) },
-    ])
-    .returning({ id: requests.id, code: requests.code });
+    ].map((request) => ({ notes: "", reviewNotes: "", ...request })));
+  const reqRows = await db.select({ id: requests.id, code: requests.code }).from(requests);
 
   const req = (code: string) => reqRows.find((r) => r.code === code)!.id;
 
@@ -296,7 +295,7 @@ async function runSeed() {
   ]);
 
   /* ----------------------------- meetings ---------------------------- */
-  const meetingRows = await db
+  await db
     .insert(meetings)
     .values([
       { title: "Municipal Farmers Coordination Meeting", startAt: at(4, 9), endAt: at(4, 11, 30), venue: "MAO Conference Room, Baco Municipal Hall", organizer: "Municipal Agriculture Office", agenda: "1. Harvest season readiness\n2. Equipment scheduling policy\n3. AgriShare portal roll-out\n4. Other matters", description: "Quarterly coordination meeting with all accredited farmers' associations.", audience: "All Farmers", status: "Upcoming", createdBy: usr("admin@") },
@@ -304,8 +303,8 @@ async function runSeed() {
       { title: "Equipment Operators Safety Briefing", startAt: at(2, 8), endAt: at(2, 10), venue: "MAO Motorpool, Poblacion", organizer: "MAO Equipment Section", agenda: "1. Pre-operation checklist\n2. Field safety protocol\n3. Maintenance reporting through AgriShare", description: "Mandatory briefing for all MAO drivers, operators and technicians.", audience: "Operators", status: "Upcoming", createdBy: usr("coordinator@") },
       { title: "Corn Cluster Production Planning (Dulangan)", startAt: at(-9, 9), endAt: at(-9, 11), venue: "Dulangan I Multi-Purpose Hall", organizer: "MAO Crop Production Section", agenda: "1. Cropping calendar\n2. Sheller scheduling\n3. Buyer linkage", description: "Planning session with the Dulangan Corn Producers Group.", audience: "Selected Association", status: "Completed", minutes: "The group agreed on a synchronized planting window and requested two additional sheller deployment days per month. MAO committed to prioritize corn sheller requests from the cluster during the harvest peak.", createdBy: usr("staff@") },
       { title: "Municipal Agriculture and Fishery Council (MAFC) Regular Session", startAt: at(-20, 9), endAt: at(-20, 12), venue: "Baco Municipal Session Hall", organizer: "MAFC Secretariat", agenda: "1. Review of agricultural programs\n2. Budget utilization\n3. Resolution on equipment sharing guidelines", description: "Regular session of the municipal council on agriculture and fishery.", audience: "All Farmers", status: "Completed", minutes: "Resolution No. 2026-014 adopting the municipal agricultural equipment sharing guidelines was approved, including the use of a digital request and scheduling system (AgriShare).", createdBy: usr("admin@") },
-    ])
-    .returning({ id: meetings.id, title: meetings.title });
+    ].map((meeting) => ({ minutes: "", ...meeting })));
+  const meetingRows = await db.select({ id: meetings.id, title: meetings.title }).from(meetings);
 
   await db.insert(meetingAttendance).values([
     { meetingId: meetingRows[0].id, userId: usr("farmer@"), status: "Confirmed", respondedAt: at(-1, 12) },
@@ -322,7 +321,7 @@ async function runSeed() {
   ]);
 
   /* ----------------------------- programs ---------------------------- */
-  const programRows = await db
+  await db
     .insert(programs)
     .values([
       { title: "Rice Competitiveness Enhancement Fund (RCEF) Seed Distribution", description: "Free certified inbred rice seeds for registered rice farmers of Baco.", eligibility: "Registered in RSBSA; actively farming rice; maximum of 3 hectares.", assistanceType: "Input Subsidy", opensAt: dstr(-10), deadline: dstr(20), slots: 350, status: "Open" },
@@ -330,8 +329,8 @@ async function runSeed() {
       { title: "Corn Production Support Program", description: "Hybrid corn seeds and fertilizer support for the Dulangan and Catwiran corn clusters.", eligibility: "Corn farmers with at least 0.5 ha within the identified corn clusters.", assistanceType: "Input Subsidy", opensAt: dstr(-2), deadline: dstr(28), slots: 120, status: "Open" },
       { title: "Urban and Backyard Vegetable Gardening Kits", description: "Vegetable seed kits and gardening tools for households and school gardens.", eligibility: "Any Baco resident household or school with available planting area.", assistanceType: "Input Subsidy", opensAt: dstr(-45), deadline: dstr(-5), slots: 200, status: "Closed" },
       { title: "Farmers' Field School on Integrated Pest Management", description: "Season-long training on integrated pest management and good agricultural practices.", eligibility: "Rice or vegetable farmers endorsed by their association or barangay.", assistanceType: "Training", opensAt: dstr(3), deadline: dstr(40), slots: 40, status: "Upcoming" },
-    ])
-    .returning({ id: programs.id, title: programs.title });
+    ]);
+  const programRows = await db.select({ id: programs.id, title: programs.title }).from(programs);
 
   await db.insert(applications).values([
     { programId: programRows[0].id, farmerId: frm("farmer@"), status: "Approved", notes: "6 bags allocated.", submittedAt: at(-8, 10) },
@@ -340,7 +339,7 @@ async function runSeed() {
     { programId: programRows[1].id, farmerId: frm("association@"), status: "Under Review", notes: "Association documents complete, pending ocular inspection.", submittedAt: at(-4, 14) },
     { programId: programRows[2].id, farmerId: frm("lorna.aguilar"), status: "Approved", notes: "4 ha allocation approved.", submittedAt: at(-2, 8) },
     { programId: programRows[3].id, farmerId: frm("pedro.villanueva"), status: "Completed", notes: "Kit released.", submittedAt: at(-30, 10) },
-  ]);
+  ].map((application) => ({ notes: "", ...application })));
 
   /* --------------------------- notifications ------------------------- */
   await db.insert(notifications).values([

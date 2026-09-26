@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { plantDiagnoses, auditLogs, notifications, users } from "@/db/schema";
+import { plantDiagnoses, auditLogs, notifications, users } from "@/db/mysql-schema";
 import { getCurrentUser } from "@/lib/session";
 import { analyzePlantImage } from "@/lib/plant-ai";
 import { sql } from "drizzle-orm";
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
           status: diagnosis.severity === "Severe" ? "Pending Review" : "Verified by MAO",
           technologistNotes: diagnosis.technologistAdvisory,
         })
-        .returning({ id: plantDiagnoses.id });
+        .$returningId();
 
       savedId = inserted[0]?.id ?? null;
 

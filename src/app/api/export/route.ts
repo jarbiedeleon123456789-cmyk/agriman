@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     const data = await listEquipment();
     rows = [
       ["Asset code", "Name", "Category", "Status", "Condition", "Station", "Rate per ha", "Next maintenance"],
-      ...data.map((e) => [e.assetCode, e.name, e.category, e.status, e.condition, e.location, e.ratePerHa, e.nextMaintenanceDue]),
+      ...data.map((e) => [e.assetCode, e.name, e.category, e.status, e.condition, e.location, e.ratePerHa, e.nextMaintenanceDue?.toISOString().slice(0, 10) ?? ""]),
     ];
     name = "equipment-inventory";
   } else if (type === "schedule") {

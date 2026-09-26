@@ -24,7 +24,7 @@ import {
   resources,
   settings,
   users,
-} from "@/db/schema";
+} from "@/db/mysql-schema";
 
 export const ACTIVE_RESERVATION_STATUSES = ["Scheduled", "In Progress"];
 export const OPEN_REQUEST_STATUSES = ["Submitted", "Under Review", "Approved", "Scheduled", "In Progress"];

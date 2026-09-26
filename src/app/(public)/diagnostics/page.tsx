@@ -6,7 +6,7 @@ import { Badge, Stat } from "@/components/ui";
 import { listBarangays } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/session";
 import { db } from "@/db";
-import { plantDiagnoses, barangays as barangayTable } from "@/db/schema";
+import { plantDiagnoses, barangays as barangayTable } from "@/db/mysql-schema";
 import { desc, eq } from "drizzle-orm";
 import { fmtDate } from "@/lib/utils";
 
